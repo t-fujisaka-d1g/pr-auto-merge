@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import {calcCommentBody, calcMergeMethod} from './models'
 
 async function run(): Promise<void> {
   try {
@@ -37,17 +38,19 @@ async function run(): Promise<void> {
       })
       const comment = comments
         .map(v => v.body)
-        .find(v => v?.startsWith('auto-merge'))
+        .find(v => v?.startsWith('@pr-auto-merge'))
       if (!comment) {
         core.debug('auto-mergeコメントがない → スキップ')
         continue
       }
 
+      const mergeMethod = calcMergeMethod(comment)
+
       await octokit.rest.issues.createComment({
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
         issue_number: Number(pull.number),
-        body: `プルリクエストをマージします :rocket:`
+        body: calcCommentBody(mergeMethod)
       })
     }
 
