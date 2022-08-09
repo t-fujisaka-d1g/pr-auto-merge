@@ -16,28 +16,20 @@ async function run(): Promise<void> {
       state: 'open'
     })
 
-    const result: {num: number; text: string}[] = []
+    const result: {num: number; text: string; remark: string}[] = []
 
     for (const pull of pulls) {
+      const skips: string[] = []
       if (pull.auto_merge !== null) {
-        const message = 'スキップ(GitHub謹製auto-mergeが有効)'
-        core.debug(message)
-        result.push({num: pull.number, text: message})
-        continue
+        skips.push('GitHub謹製auto-mergeが有効')
       }
 
       if (pull.assignees && pull.assignees.length > 0) {
-        const message = 'スキップ(Assignees指定あり)'
-        core.debug(message)
-        result.push({num: pull.number, text: message})
-        continue
+        skips.push('Assignees指定あり')
       }
 
       if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
-        const message = 'スキップ(Reviewers指定あり)'
-        core.debug(message)
-        result.push({num: pull.number, text: message})
-        continue
+        skips.push('Reviewers指定あり')
       }
 
       const {data: comments} = await octokit.rest.issues.listComments({
@@ -55,13 +47,20 @@ async function run(): Promise<void> {
         .map(v => v.body)
         .find(v => v?.startsWith(keyword))
       if (!comment) {
-        const message = `スキップ([${keyword}]コメントがなし)`
-        core.debug(message)
-        result.push({num: pull.number, text: message})
+        skips.push(`[${keyword}]コメントがなし`)
+      }
+
+      if (skips.length > 0) {
+        result.push({
+          num: pull.number,
+          text: 'スキップ:zzz:',
+          remark: skips.join(',')
+        })
         continue
       }
 
-      const mergeMethod = calcMergeMethod(comment)
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const mergeMethod = calcMergeMethod(comment!)
 
       await octokit.rest.issues.createComment({
         owner: github.context.repo.owner,
@@ -70,19 +69,28 @@ async function run(): Promise<void> {
         body: calcCommentBody(mergeMethod)
       })
 
-      result.push({num: pull.number, text: calcCommentBody(mergeMethod)})
+      result.push({
+        num: pull.number,
+        text: `${calcCommentBody(mergeMethod)}`,
+        remark: ''
+      })
     }
 
     await core.summary
-      .addHeading('Test Results')
       .addTable([
         [
-          {data: 'PR番号', header: true},
-          {data: 'マージ結果', header: true}
+          {data: 'PR', header: true},
+          {data: '結果', header: true},
+          {data: '備考', header: true}
         ],
-        ...result.map(v => [`#${v.num}`, v.text])
+        ...result
+          .sort((a, b) => (a.num > b.num ? 1 : -1))
+          .map(v => [
+            `[#${v.num}](https://github.com/t-fujisaka-d1g/action-sandbox/pull/${v.num})`,
+            v.text,
+            v.remark
+          ])
       ])
-      .addLink('View staging deployment!', 'https://github.com')
       .write()
 
     core.debug(`pulls: ${JSON.stringify(pulls, null, '  ')}`)
