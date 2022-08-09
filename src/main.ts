@@ -16,19 +16,27 @@ async function run(): Promise<void> {
       state: 'open'
     })
 
+    const result: {num: number; text: string}[] = []
+
     for (const pull of pulls) {
       if (pull.auto_merge !== null) {
-        core.debug('GitHub謹製のauto-mergeが有効な場合はスキップ')
+        const message = 'スキップ(GitHub謹製auto-mergeが有効)'
+        core.debug(message)
+        result.push({num: pull.number, text: message})
         continue
       }
 
       if (pull.assignees && pull.assignees.length > 0) {
-        core.debug('Assigneesが指定されている → スキップ')
+        const message = 'スキップ(Assignees指定あり)'
+        core.debug(message)
+        result.push({num: pull.number, text: message})
         continue
       }
 
       if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
-        core.debug('Reviewersが指定されている → スキップ')
+        const message = 'スキップ(Reviewers指定あり)'
+        core.debug(message)
+        result.push({num: pull.number, text: message})
         continue
       }
 
@@ -47,7 +55,9 @@ async function run(): Promise<void> {
         .map(v => v.body)
         .find(v => v?.startsWith(keyword))
       if (!comment) {
-        core.debug(`[${keyword}]コメントがない → スキップ`)
+        const message = `スキップ([${keyword}]コメントがなし)`
+        core.debug(message)
+        result.push({num: pull.number, text: message})
         continue
       }
 
@@ -59,7 +69,21 @@ async function run(): Promise<void> {
         issue_number: Number(pull.number),
         body: calcCommentBody(mergeMethod)
       })
+
+      result.push({num: pull.number, text: calcCommentBody(mergeMethod)})
     }
+
+    await core.summary
+      .addHeading('Test Results')
+      .addTable([
+        [
+          {data: 'PR番号', header: true},
+          {data: 'マージ結果', header: true}
+        ],
+        ...result.map(v => [`#${v.num}`, v.text])
+      ])
+      .addLink('View staging deployment!', 'https://github.com')
+      .write()
 
     core.debug(`pulls: ${JSON.stringify(pulls, null, '  ')}`)
   } catch (error) {
