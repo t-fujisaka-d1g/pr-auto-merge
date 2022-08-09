@@ -39,8 +39,8 @@ async function run(): Promise<void> {
       core.debug(`comments: ${JSON.stringify(comments, null, '  ')}`)
       const comment = comments
         .sort((a, b) => {
-          if (a.created_at > b.created_at) return 1
-          if (a.created_at < b.created_at) return -1
+          if (a.created_at < b.created_at) return 1
+          if (a.created_at > b.created_at) return -1
           return 0
         })
         .map(v => v.body)
