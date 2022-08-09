@@ -8,11 +8,48 @@ async function run(): Promise<void> {
     const repo = github.context.repo.repo
 
     const octokit = github.getOctokit(token)
-    const pulls = await octokit.rest.pulls.list({
+    const {data: pulls} = await octokit.rest.pulls.list({
       owner,
       repo,
       state: 'open'
     })
+
+    for (const pull of pulls) {
+      if (pull.auto_merge !== null) {
+        core.debug('GitHub謹製のauto-mergeが有効な場合はスキップ')
+        continue
+      }
+
+      if (pull.assignees && pull.assignees.length > 0) {
+        core.debug('Assigneesが指定されている → スキップ')
+        continue
+      }
+
+      if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
+        core.debug('Reviewersが指定されている → スキップ')
+        continue
+      }
+
+      const {data: comments} = await octokit.rest.issues.listComments({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        issue_number: pull.number
+      })
+      const comment = comments
+        .map(v => v.body)
+        .find(v => v?.startsWith('auto-merge'))
+      if (!comment) {
+        core.debug('auto-mergeコメントがない → スキップ')
+        continue
+      }
+
+      await octokit.rest.issues.createComment({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        issue_number: Number(pull.number),
+        body: `プルリクエストをマージします :rocket:`
+      })
+    }
 
     core.debug(`pulls: ${JSON.stringify(pulls, null, '  ')}`)
   } catch (error) {
