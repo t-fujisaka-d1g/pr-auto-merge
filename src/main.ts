@@ -21,7 +21,7 @@ async function run(): Promise<void> {
     for (const pull of pulls) {
       const skips: string[] = []
       if (pull.auto_merge !== null) {
-        skips.push('GitHub謹製auto-mergeが有効')
+        skips.push('GitHub謹製auto-merge有効')
       }
 
       if (pull.assignees && pull.assignees.length > 0) {
@@ -47,7 +47,7 @@ async function run(): Promise<void> {
         .map(v => v.body)
         .find(v => v?.startsWith(keyword))
       if (!comment) {
-        skips.push(`[${keyword}]コメントがなし`)
+        skips.push(`${keyword}コメントなし`)
       }
 
       if (skips.length > 0) {
@@ -85,11 +85,7 @@ async function run(): Promise<void> {
         ],
         ...result
           .sort((a, b) => (a.num > b.num ? 1 : -1))
-          .map(v => [
-            `[#${v.num}](https://github.com/t-fujisaka-d1g/action-sandbox/pull/${v.num})`,
-            v.text,
-            v.remark
-          ])
+          .map(v => [`#${v.num}`, v.text, v.remark])
       ])
       .write()
 
