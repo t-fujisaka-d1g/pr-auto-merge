@@ -36,6 +36,7 @@ async function run(): Promise<void> {
         repo: github.context.repo.repo,
         issue_number: pull.number
       })
+      core.debug(`comments: ${JSON.stringify(comments, null, '  ')}`)
       const comment = comments
         .map(v => v.body)
         .find(v => v?.startsWith('@pr-auto-merge'))
