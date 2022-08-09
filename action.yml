@@ -5,6 +5,10 @@ inputs:
   github-token:
     required: true
     description: 'GITHUB_TOKEN'
+  keyword:
+    required: false
+    description: 'キーワードコメント'
+    default: '@pr-auto-merge'
 runs:
   using: 'node16'
   main: 'dist/index.js'

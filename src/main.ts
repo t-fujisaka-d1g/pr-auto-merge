@@ -5,6 +5,7 @@ import {calcCommentBody, calcMergeMethod} from './models'
 async function run(): Promise<void> {
   try {
     const token: string = core.getInput('github-token')
+    const keyword: string = core.getInput('keyword')
     const owner = github.context.repo.owner
     const repo = github.context.repo.repo
 
@@ -44,9 +45,9 @@ async function run(): Promise<void> {
           return 0
         })
         .map(v => v.body)
-        .find(v => v?.startsWith('@pr-auto-merge'))
+        .find(v => v?.startsWith(keyword))
       if (!comment) {
-        core.debug('auto-mergeコメントがない → スキップ')
+        core.debug(`[${keyword}]コメントがない → スキップ`)
         continue
       }
 
