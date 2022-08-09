@@ -9,15 +9,15 @@ async function run(): Promise<void> {
     const owner = github.context.repo.owner
     const repo = github.context.repo.repo
 
+    // 実行結果(Job Summariesに記載に利用)
+    const results: {num: number; text: string; remark: string}[] = []
+
     const octokit = github.getOctokit(token)
     const {data: pulls} = await octokit.rest.pulls.list({
       owner,
       repo,
       state: 'open'
     })
-
-    const result: {num: number; text: string; remark: string}[] = []
-
     for (const pull of pulls) {
       const skips: string[] = []
       if (pull.auto_merge !== null) {
@@ -51,7 +51,7 @@ async function run(): Promise<void> {
       }
 
       if (skips.length > 0) {
-        result.push({
+        results.push({
           num: pull.number,
           text: 'スキップ:zzz:',
           remark: skips.join(',')
@@ -62,6 +62,7 @@ async function run(): Promise<void> {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const mergeMethod = calcMergeMethod(comment!)
 
+      // PRにコメントを追加
       await octokit.rest.issues.createComment({
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
@@ -69,7 +70,15 @@ async function run(): Promise<void> {
         body: calcCommentBody(mergeMethod)
       })
 
-      result.push({
+      // PRをマージ
+      await octokit.rest.pulls.merge({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        pull_number: pull.number,
+        merge_method: mergeMethod
+      })
+
+      results.push({
         num: pull.number,
         text: `${calcCommentBody(mergeMethod)}`,
         remark: ''
@@ -83,7 +92,7 @@ async function run(): Promise<void> {
           {data: '結果', header: true},
           {data: '備考', header: true}
         ],
-        ...result
+        ...results
           .sort((a, b) => (a.num > b.num ? 1 : -1))
           .map(v => [`#${v.num}`, v.text, v.remark])
       ])
